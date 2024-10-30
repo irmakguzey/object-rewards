@@ -1,0 +1,6 @@
+[submodule "submodules/Open-Teach-HuDOR"]
+	path = submodules/Open-Teach-HuDOR
+	url = https://github.com/irmakguzey/Open-Teach-HuDOR
+[submodule "submodules/OpenTeach-Controllers"]
+	path = submodules/OpenTeach-Controllers
+	url = https://github.com/NYU-robot-learning/OpenTeach-Controllers.git

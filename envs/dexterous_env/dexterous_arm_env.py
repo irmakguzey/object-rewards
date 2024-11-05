@@ -18,7 +18,7 @@ from scipy.spatial.transform import Rotation
 from object_rewards.kinematics.fingertip_ik_full_robot_solver import (
     FingertipIKFullRobotSolver,
 )
-from object_rewards.utils.constant import EEF_TO_END
+from object_rewards.utils.constants import EEF_TO_END
 from object_rewards.utils.files import get_root_path
 from object_rewards.utils.augmentations import crop_transform
 

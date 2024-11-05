@@ -32,11 +32,7 @@ class FingertipChain:
             ),
         )
         self.tip_link = self.robot.link(tip_link_name)
-        print("self.tip_link.getName(): {}".format(self.tip_link.getName()))
-        print("self.robot.getLinks(): {}".format(self.robot.numLinks()))
-
         self.num_links = len(self.robot.getConfig())
-        print("Chain initiated number of links: {}".format(self.num_links))
 
     def get_current_position(self):
         _, current_tvec = self.tip_link.getTransform()
@@ -138,8 +134,6 @@ class FingertipChain:
             rvec=np.asarray(ft_rvec).reshape(3, 3).T, tvec=np.asarray(ft_tvec)
         )
 
-        # self.robot.setConfig(old_config)
-
         return fingertip_pose
 
     def get_endeff_pose(self, joint_positions):
@@ -167,7 +161,6 @@ class FingertipChain:
 
         self.robot.setConfig(joint_positions)
 
-        # endeff_link = 'allegro_mount'
         link_rvec, link_tvec = self.robot.link(link_name).getTransform()
 
         from third_person_man.utils import turn_frames_to_homo

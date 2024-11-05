@@ -1,0 +1,17 @@
+{
+  "elements": [
+    "palm_link"
+  ],
+  "urdf_file": "model_only_hand.urdf",
+  "active_links_mask": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+  ],
+  "last_link_vector": null,
+  "name": "index",
+  "version": "v1"
+}

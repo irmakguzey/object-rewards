@@ -23,7 +23,14 @@ def crop_demo(data_path, view_num, demo_num=None):
             pattern = r"\d+$"
             demo_num = int(re.findall(pattern, demo_path)[0])
 
-            demo_dict[demo_num] = get_cropped_demo_dict(demo_path, view_num)
+            try:
+                demo_dict[demo_num] = get_cropped_demo_dict(demo_path, view_num)
+            except:
+                continue  # If there is an error continue to the next demonstration - this error occurs due to having missing keypoints file
+
+        assert (
+            len(demo_dict.keys()) > 0
+        ), "None of the demos during demo cropping got processed"
 
     else:
 

@@ -22,6 +22,18 @@ def get_diff_in_homo(matrix_a, matrix_b):
     return translational_dist, angle_diff
 
 
+def flatten_homo_action(action, action_dim=12):
+    # action: (8,4,4)
+    # it will turn that action to (24,) (or 12,) action [will just get the tvecs of the fingers]
+    flattened_action = []
+    for homo_action in action:
+        _, action_tvec = turn_homo_to_frames(matrix=homo_action)
+        flattened_action.append(torch.FloatTensor(action_tvec))
+
+    flattened_action = torch.concat(flattened_action, axis=0)
+    return flattened_action[:action_dim]
+
+
 def turn_homo_to_frames(matrix):
     # matrix: 4x4 homogenous matrix
     rvec = matrix[:3, :3]

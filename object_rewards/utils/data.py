@@ -14,43 +14,52 @@ from pathlib import Path
 #  demo_num : {frame_idx: [start_frame_idx, end_frame_idx], demo_idx: [start_demo_idx, end_demo_idx]}
 #  }
 # TODO: These should be demo-specific and not needing all of the demos
-def crop_demo(data_path, view_num):
+def crop_demo(data_path, view_num, demo_num=None):
+    # NOTE: The demo number here does not taking into account of the calibration steps!!!
     demo_dict = dict()
     roots = sorted(glob.glob(f"{data_path}/demonstration_*"))
-    for demo_index, demo in enumerate(roots):
-        # demo_num = int(demo.split('/')[-1][-1])
-        pattern = r"\d+$"
-        demo_num = int(re.findall(pattern, demo)[0])
-        # print('demo_num: {}'.format(demo_num))
-        # we only need to match with one, let's match with keypoint indices
-        # Get keypoint timestamps and record_status
-        timestep_path = Path(demo) / "keypoints.h5"
-        index_path = Path(demo) / "keypoint_indices.pkl"
-        with h5py.File(timestep_path, "r") as file:
-            keypoint_timestamps = list(file["timestamps"])
-            keypoint_status = list(file["keypoint_status"])
-        with open(index_path, "rb") as file:
-            indices = pickle.load(file)
-        demo_start_index, demo_end_index = get_indices_from_timestampps(
-            keypoint_timestamps, keypoint_status, indices
-        )
+    if demo_num is None:
+        for demo_path in roots:
+            pattern = r"\d+$"
+            demo_num = int(re.findall(pattern, demo_path)[0])
 
-        # Now get frame_start_index, frame_end_index
-        frame_index_path = Path(demo) / "image_indices_cam_{}.pkl".format(view_num)
-        with open(frame_index_path, "rb") as file:
-            frame_indices = pickle.load(file)
-        frame_start_index, frame_end_index = (
-            frame_indices[demo_start_index][1],
-            frame_indices[demo_end_index][1],
-        )
+            demo_dict[demo_num] = get_cropped_demo_dict(demo_path, view_num)
 
-        # build the dictionary
-        demo_dict[demo_num] = {
-            "frame_idx": [frame_start_index, frame_end_index],
-            "demo_idx": [demo_start_index, demo_end_index],
-        }
+    else:
 
-        # NOTE: The demo number here does not taking into account of the calibration steps!!!
+        demo_path = f"{data_path}/demonstration_{demo_num}"
+        demo_dict[demo_num] = get_cropped_demo_dict(demo_path, view_num)
+
+    return demo_dict
+
+
+def get_cropped_demo_dict(demo_path, view_num):
+    # Get keypoint timestamps and record_status
+    timestep_path = Path(demo_path) / "keypoints.h5"
+    index_path = Path(demo_path) / "keypoint_indices.pkl"
+    with h5py.File(timestep_path, "r") as file:
+        keypoint_timestamps = list(file["timestamps"])
+        keypoint_status = list(file["keypoint_status"])
+    with open(index_path, "rb") as file:
+        indices = pickle.load(file)
+    demo_start_index, demo_end_index = get_indices_from_timestampps(
+        keypoint_timestamps, keypoint_status, indices
+    )
+
+    # Now get frame_start_index, frame_end_index
+    frame_index_path = Path(demo_path) / "image_indices_cam_{}.pkl".format(view_num)
+    with open(frame_index_path, "rb") as file:
+        frame_indices = pickle.load(file)
+    frame_start_index, frame_end_index = (
+        frame_indices[demo_start_index][1],
+        frame_indices[demo_end_index][1],
+    )
+
+    # Build the dictionary
+    demo_dict = dict(
+        frame_idx=[frame_start_index, frame_end_index],
+        demo_idx=[demo_start_index, demo_end_index],
+    )
 
     return demo_dict
 
@@ -75,33 +84,25 @@ def find_closest_timestamp_index(keypoint_timestamps, sampled_timestamp):
     return min_index
 
 
+def get_all_demo_frame_ids(data_path, camera_id):
+    all_demos_dict = crop_demo(data_path=data_path, camera_id=camera_id)
+    all_demos_frame_ids = convert_to_demo_frame_ids(demo_dict=all_demos_dict)
+    return all_demos_frame_ids
+
+
+def get_single_demo_frame_ids(data_path, demo_num, camera_id):
+    demo_dict = crop_demo(data_path=data_path, camera_id=camera_id, demo_num=demo_num)
+    demo_frame_ids = convert_to_demo_frame_ids(demo_dict=demo_dict)
+    return np.asarray(demo_frame_ids[str(demo_num)])
+
+
 def convert_to_demo_frame_ids(demo_dict):
-    # It is basically the same thing, just a format convertion
+    # Just returns the image frame ids of the demo dictionary
     demo_frame_ids = dict()
     for demo_num in demo_dict.keys():
         frame_ids = demo_dict[demo_num]["frame_idx"]
         demo_frame_ids[str(demo_num)] = frame_ids
     return demo_frame_ids
-
-
-def convert_to_demo_ids(demo_dict):
-    # It is basically the same thing, just a format convertion
-    demo_ids = dict()
-    for demo_num in demo_dict.keys():
-        frame_ids = demo_dict[demo_num]["demo_idx"]
-        demo_ids[str(demo_num)] = frame_ids
-    return demo_ids
-
-
-def get_expert_demo_frame_ids(data_path, camera_id, expert_demo_nums):
-    all_demos_dict = crop_demo(data_path=data_path, view_num=camera_id)
-    print("all_demos_dict: {}".format(all_demos_dict))
-    all_demos_frame_ids = convert_to_demo_frame_ids(demo_dict=all_demos_dict)
-    print("all_demos_frame_ids: {}".format(all_demos_frame_ids))
-    expert_demo_frame_ids = [
-        all_demos_frame_ids[str(expert_key)] for expert_key in expert_demo_nums
-    ]
-    return np.asarray(expert_demo_frame_ids)
 
 
 def get_demo_action_ids(data_path, view_num, demo_num):
@@ -136,10 +137,3 @@ def get_demo_action_ids_from_frame_ids(root, image_frame_ids, demo_num, view_num
             break
 
     return action_ids
-
-
-def get_single_demo_frame_ids(data_path, camera_id, demo_num):
-    all_demos_dict = crop_demo(data_path=data_path, view_num=camera_id)
-    all_demos_frame_ids = convert_to_demo_frame_ids(demo_dict=all_demos_dict)
-    single_demo_frame_ids = all_demos_frame_ids[str(demo_num)]
-    return np.asarray(single_demo_frame_ids)

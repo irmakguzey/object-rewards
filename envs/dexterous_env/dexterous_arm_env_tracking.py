@@ -6,7 +6,7 @@ import torch
 from openteach.utils.network import ZMQCameraSubscriber
 
 from object_rewards.point_tracking.co_tracker import CoTrackerLangSam
-from object_rewards.utils.constant import ALLEGRO_HOME_POSITION
+from object_rewards.utils.constants import ALLEGRO_HOME_POSITION
 
 from .dexterous_arm_env import DexterityEnv
 

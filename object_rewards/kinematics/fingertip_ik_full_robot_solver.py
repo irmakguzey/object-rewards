@@ -290,9 +290,6 @@ class FingertipIKFullRobotSolver:
             self.fingertip_link_mappings[finger_type] = urdf_fingertip_mappings[
                 finger_type
             ]
-            # if compute_type == 'all':
-            #     finger_type_orientation = f'{finger_type}_orientation'
-            #     self.fingertip_link_mappings[finger_type_orientation] = urdf_fingertip_mappings[finger_type_orientation]
 
         # Create the chains
         self.chains = {}

@@ -22,6 +22,7 @@ from object_rewards.calibration import CalibrateBase, CalibrateFingertips
 from object_rewards.utils.transforms import flatten_homo_action
 from object_rewards.point_tracking.co_tracker import CoTrackerLangSam
 from object_rewards.utils.data import get_demo_action_ids, get_all_demo_frame_ids
+from object_rewards.utils.augmentations import crop_transform
 
 
 class SeqH2RDataset(
@@ -41,7 +42,6 @@ class SeqH2RDataset(
         action_chunking_len,
         delta_actions,
         normalize_features,
-        feature_type,
         ts_step,
         object_detection_camera_type,  # realsense or fisheye
         object_text_prompt,
@@ -67,7 +67,9 @@ class SeqH2RDataset(
         self.image_transform = T.Compose(
             [
                 T.Resize((480, 640)),
-                T.Lambda(self._crop_transform),
+                T.Lambda(
+                    lambda image: crop_transform(image, camera_view=self.camera_id)
+                ),
             ]
         )
 
@@ -103,11 +105,6 @@ class SeqH2RDataset(
 
     def __len__(self):
         return self._observations.shape[0]  # If it's the final frame we don't
-
-    def _crop_transform(
-        self, image
-    ):  # TODO: Clean this - make this better! with some lambda or smth
-        return crop_transform(image, self.camera_id)
 
     def _load_image(self, demo_path, frame_id):
 
@@ -233,9 +230,7 @@ class SeqH2RDataset(
                     for j in range(len(self.demo_residuals)):
                         fingertips_to_base[:, j, 3] += self.demo_residuals[j]
 
-                flattened_fingertips = self.flatten_homo_action(
-                    action=fingertips_to_base
-                )
+                flattened_fingertips = flatten_homo_action(action=fingertips_to_base)
                 fingertips.append(flattened_fingertips)
                 index_to_demo_indexes.append(
                     (demo_start_index, demo_start_index + demo_len)

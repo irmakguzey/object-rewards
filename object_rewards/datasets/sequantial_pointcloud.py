@@ -1,158 +1,66 @@
-# Dataset to be used for training VQ-Bet training
-import glob
 import os
 import pickle
-
-import numpy as np
+import h5py
 import torch
-import torch.utils.data as data
-import torchvision.transforms as T
-from torchvision.datasets.folder import default_loader as loader
 from tqdm import tqdm
+import numpy as np
 
+from object_rewards.calibration import CalibrateFingertips
+from object_rewards.datasets.sequential import SeqH2RDataset
+from object_rewards.utils.point_cloud import get_point_cloud
 from object_rewards.utils.trajectory import get_rot_and_trans
-from object_rewards.calibration import CalibrateBase, CalibrateFingertips
-from object_rewards.utils.transforms import flatten_homo_action
-from object_rewards.point_tracking.co_tracker import CoTrackerLangSam
-from object_rewards.utils.data import get_demo_action_ids, get_all_demo_frame_ids
-from object_rewards.utils.augmentations import crop_transform
 
 
-class SeqH2RDataset(
-    data.Dataset
-):  # NOTE: Change this name to SeqVQVAE or smth like that
+class SeqH2RwCoTrackerandDepthDataset(SeqH2RDataset):
+    def __init__(self, depth_camera_id, x_bounds, y_bounds, **kwargs):
+        # This method will return point clouds as a part of the observations
+        self.depth_camera_id = depth_camera_id
+        self.x_bounds = x_bounds
+        self.y_bounds = y_bounds
+        super().__init__(**kwargs)
 
-    def __init__(
-        self,
-        data_path,
-        host,
-        camera_id,
-        camera_port,
-        object_detection_camera_id,
-        marker_size,
-        calibration_pics_dir,
-        traj_len,
-        action_chunking_len,
-        delta_actions,
-        normalize_features,
-        ts_step,
-        object_detection_camera_type,  # realsense or fisheye
-        object_text_prompt,
-        cotracker_checkpoint_path,
-        cotracker_grid_size,
-        cotracker_device,
-        demo_residuals=None,
-    ):
+    # Will return the point cloud for whole demo - we'll only use depth for now
+    def _get_pcd_per_demo(self, demo_path, demo_action_ids):
 
-        self.is_fish_eye = object_detection_camera_type == "fisheye"
-        self.object_text_prompt = object_text_prompt
-
-        # Initialize the cotracker
-        # Initialize models
-        self.predictor = CoTrackerLangSam(
-            device=cotracker_device,
-            is_online=True,
-            checkpoint_path=cotracker_checkpoint_path,
-            frame_by_frame=False,
-            grid_size=cotracker_grid_size,
+        depth_file_path = os.path.join(
+            demo_path, f"cam_{self.depth_camera_id}_depth.h5"
         )
+        with h5py.File(depth_file_path, "r") as f:
+            depth_images = f["depth_images"][()]
 
-        self.image_transform = T.Compose(
-            [
-                T.Resize((480, 640)),
-                T.Lambda(
-                    lambda image: crop_transform(image, camera_view=self.camera_id)
-                ),
-            ]
-        )
-
-        # data_representations: [image, features], features is fingertip positions wrt the base
-        self.traj_len = traj_len
-        self.action_chunking_len = action_chunking_len
-        self.data_path = data_path
-        self.roots = sorted(glob.glob(f"{data_path}/demonstration_*"))
-        self.camera_id = camera_id
-        self.object_camera_id = object_detection_camera_id
-        self.host = host
-
-        # Get the base calibrations
-        self.calibrate_base = CalibrateBase(
-            host=host,
-            calibration_pics_dir=calibration_pics_dir,
-            cam_idx=camera_id,
-            marker_size=marker_size,
-        )
-        self.H_B_C = self.calibrate_base.load_base_to_camera()
-        self.H_A_C = None  # We hold this so that we won't need to calibrate the camera to the aruco for every demo
-
-        self.camera_port = camera_port
-        self.marker_size = marker_size
-        self.demo_frame_ids = get_all_demo_frame_ids()
-        self.action_dim = 12
-        self.delta_actions = delta_actions
-        self.normalize_features = normalize_features
-
-        self.demo_residuals = demo_residuals
-        self.ts_step = ts_step
-        self.get_demo_info()
-
-    def __len__(self):
-        return self._observations.shape[0]  # If it's the final frame we don't
-
-    def _load_image(self, demo_path, frame_id):
-
-        dir_name = (
-            f"cam_{self.object_camera_id}_fish_eye_images"
-            if self.is_fish_eye
-            else f"cam_{self.object_camera_id}_rgb_images"
-        )
-
-        image_path = os.path.join(
-            demo_path,
-            "{}/frame_{}.png".format(dir_name, str(frame_id).zfill(5)),
-        )
-        img = self.image_transform(loader(image_path))  # This loads images as PIL image
-        return img  # width: 640, height: 480
-
-    def _get_pred_tracks_for_demo(self, demo_path, demo_action_ids):
         # Use view_num and the collected frames to get the predicted tracks
         demo_num = demo_path.split("/")[-1].split("_")[-1]
-
         pkl_file_name = (
             f"image_indices_fish_eye_cam_{self.object_camera_id}.pkl"
             if self.is_fish_eye
             else f"image_indices_cam_{self.object_camera_id}.pkl"
         )
-        object_image_indices_path = os.path.join(demo_path, pkl_file_name)
+        # NOTE: For now we're not including colors to the point cloud
+        rgb_image_indices_path = os.path.join(demo_path, pkl_file_name)
+        with open(rgb_image_indices_path, "rb") as file:
+            rgb_image_indices = pickle.load(file)
 
-        with open(object_image_indices_path, "rb") as file:
-            demo_object_image_indices = pickle.load(file)
-
-        demo_imgs = []
+        demo_points = []
         pbar = tqdm(total=demo_action_ids[1] - demo_action_ids[0])
         for action_id in range(demo_action_ids[0], demo_action_ids[1]):
-            img_frame_id = demo_object_image_indices[action_id][1]
-            img = self._load_image(demo_path=demo_path, frame_id=img_frame_id)
-            demo_imgs.append(img)
+            img_frame_id = rgb_image_indices[action_id][1]
+            depth_img = depth_images[img_frame_id]
+            pcd = get_point_cloud(
+                color_img=None,  # NOTE: For now we're not using color image
+                depth_img=depth_img,
+                filter_outliners=False,
+                x_bounds=self.x_bounds,
+                y_bounds=self.y_bounds,
+            )
+
+            pc_idx = np.random.choice(range(np.asarray(pcd.points).shape[0]), 3000)
+            demo_points.append(np.asarray(pcd.points)[pc_idx, :])
+
             pbar.update(1)
-            pbar.set_description(f"Getting Demo {demo_num} Tracks")
+            pbar.set_description(f"Getting Demo {demo_num} Point Cloud")
 
-        demo_imgs = np.stack(demo_imgs, axis=0)
-
-        demo_tracks = self.predictor.get_segmented_tracks_by_batch(
-            frames=demo_imgs, text_prompt=self.object_text_prompt
-        )
-
-        pbar.close()
-
-        print(f"Demo: {demo_num} - demo_tracks.shape: {demo_tracks.shape}")
-        return demo_tracks
-
-    def get_initialization_wrist_and_finger_roots(self):
-        wrist_to_base = np.mean(self.init_demo_wrist_to_base, axis=0)
-        finger_roots_to_base = np.mean(self.init_demo_finger_roots_to_bases, axis=0)
-
-        return wrist_to_base, finger_roots_to_base
+        demo_points = torch.FloatTensor(np.stack(demo_points, axis=0))
+        return demo_points
 
     def get_demo_info(self):
         # Method to traverse through the roots and get the action ids that starts the demos
@@ -164,6 +72,8 @@ class SeqH2RDataset(
         demo_start_index = 0
 
         object_position_observations = []
+        pcds = []
+
         init_demo_wrist_to_base = []
         init_demo_finger_roots_to_bases = []
 
@@ -171,8 +81,8 @@ class SeqH2RDataset(
             demo_num = demo_path.split("/")[-1].split("_")[-1]
 
             # Get the demo action ids
-            demo_action_ids = get_demo_action_ids(
-                data_path=self.data_path, view_num=self.camera_id, demo_num=demo_num
+            demo_action_ids = self._get_demo_action_id(
+                demo_path=demo_path, image_frame_ids=self.demo_frame_ids[demo_num]
             )
 
             demo_calibrate_fingertips = CalibrateFingertips(
@@ -193,6 +103,12 @@ class SeqH2RDataset(
             demo_tracks = self._get_pred_tracks_for_demo(
                 demo_path=demo_path, demo_action_ids=demo_action_ids
             )
+
+            demo_pcd = self._get_pcd_per_demo(
+                demo_path=demo_path, demo_action_ids=demo_action_ids
+            )
+            pcds.append(torch.permute(demo_pcd, (0, 2, 1)))
+
             # Get rot and trans
             rot_and_trans = torch.FloatTensor(
                 get_rot_and_trans(tracks=demo_tracks, delta=False)
@@ -200,6 +116,7 @@ class SeqH2RDataset(
             mean_pos = torch.FloatTensor(np.mean(demo_tracks, axis=1))
 
             demo_len = demo_action_ids[1] - demo_action_ids[0]
+            # print(f"demo_len: {demo_len}")
             for i, frame_id in enumerate(range(demo_action_ids[0], demo_action_ids[1])):
 
                 if i == 0:
@@ -223,7 +140,9 @@ class SeqH2RDataset(
                     for j in range(len(self.demo_residuals)):
                         fingertips_to_base[:, j, 3] += self.demo_residuals[j]
 
-                flattened_fingertips = flatten_homo_action(action=fingertips_to_base)
+                flattened_fingertips = self.flatten_homo_action(
+                    action=fingertips_to_base
+                )
                 fingertips.append(flattened_fingertips)
                 index_to_demo_indexes.append(
                     (demo_start_index, demo_start_index + demo_len)
@@ -243,8 +162,20 @@ class SeqH2RDataset(
 
         # Normalize and get the features
         fingertips = torch.stack(fingertips, dim=0)
-        object_position_observations = torch.stack(object_position_observations, dim=0)
-        observations = torch.concat([fingertips, object_position_observations], dim=-1)
+        if self.feature_type == "fingertips_only":
+            observations = fingertips
+        else:
+            object_position_observations = torch.stack(
+                object_position_observations, dim=0
+            )
+            if self.feature_type == "object_only":
+                observations = object_position_observations
+            elif self.feature_type == "fingertips_and_object":
+                observations = torch.concat(
+                    [fingertips, object_position_observations], dim=-1
+                )
+            else:
+                raise ValueError("Invalid feature type: {}".format(self.feature_type))
 
         if self.normalize_features:
             self.observations_std, self.observations_mean = torch.std_mean(
@@ -259,19 +190,23 @@ class SeqH2RDataset(
 
         self._fingertips = fingertips
         self._index_to_demo_indexes = index_to_demo_indexes
+        self._pcds = torch.concat(pcds, dim=0)
 
     def __getitem__(self, idx):
         demo_start_index, demo_end_index = self._index_to_demo_indexes[idx]
-        demo_observation, demo_fingertips = (
+        demo_pcd, demo_observation, demo_fingertips = (
+            self._pcds[demo_start_index:demo_end_index],
             self._observations[demo_start_index:demo_end_index],
             self._fingertips[demo_start_index:demo_end_index],
         )
         idx_in_demo = idx - demo_start_index
 
-        obs, act = [], [None] * (self.traj_len + self.action_chunking_len - 1)
+        pcds, obs, act = [], [], [None] * (self.traj_len + self.action_chunking_len - 1)
         for i_past in range(self.traj_len - 1, -1, -1):
             current_ts_idx = idx_in_demo - i_past * self.ts_step
             obs.append(demo_observation[max(0, current_ts_idx)])
+            pcds.append(demo_pcd[max(0, current_ts_idx)])
+
             act_chunk = []
             for i_future in range(self.action_chunking_len):
                 current_act_idx = current_ts_idx + (i_future + 1) * self.ts_step
@@ -294,5 +229,5 @@ class SeqH2RDataset(
                 - 1
                 + self.action_chunking_len
             ] = act_chunk
-        obs, act = torch.stack(obs), torch.stack(act)
-        return obs, act
+        pcds, obs, act = torch.stack(pcds), torch.stack(obs), torch.stack(act)
+        return pcds, obs, act

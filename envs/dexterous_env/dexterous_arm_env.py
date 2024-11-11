@@ -74,7 +74,9 @@ class DexterityEnv(gym.Env):
         self.image_transform = T.Compose(
             [
                 T.Resize((480, 640)),
-                T.Lambda(self._crop_transform),
+                T.Lambda(
+                    lambda image: crop_transform(image, camera_view=self.camera_id)
+                ),
             ]
         )
         self.step_count = 0
@@ -106,9 +108,6 @@ class DexterityEnv(gym.Env):
         img = np.asarray(img)
 
         return img  # NOTE: This is for environment
-
-    def _crop_transform(self, image):
-        return crop_transform(image, camera_view=self.view_num)
 
     def _get_curr_joint_positions(self):
 

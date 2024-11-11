@@ -36,10 +36,12 @@ def get_segmented_video_from_human(
 
     demo_path = f"{data_path}/demonstration_{demo_num}"
 
-    def _crop_transform(image):
-        return crop_transform(image, camera_view=view_num)
-
-    image_transform = T.Compose([T.Resize((480, 640)), T.Lambda(_crop_transform)])
+    image_transform = T.Compose(
+        [
+            T.Resize((480, 640)),
+            T.Lambda(lambda image: crop_transform(image, camera_view=view_num)),
+        ]
+    )
 
     def _load_image(frame_id):
 

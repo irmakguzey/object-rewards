@@ -19,20 +19,18 @@ from PIL import Image as im
 from object_rewards.calibration import CalibrateBase
 from object_rewards.kinematics import FingertipIKFullRobotSolver
 from object_rewards.point_tracking import CoTrackerLangSam
-
-# from third_person_man.learners.initialize_learner import init_learner
-# from third_person_man.point_cloud.pointcloud_utils import get_point_cloud_with_math
-# from third_person_man.utils import VideoRecorder, crop_transform, get_root_path
-# from third_person_man.utils.color_matching import get_obj_position
-# from third_person_man.utils.robot_position import (
-#     get_initial_kinova_position,
-#     wrist_rotation_to_kinova_position,
-# )
-# from third_person_man.utils.transform_utils import (
-#     apply_residuals,
-#     flatten_homo_position,
-#     homo_flattened_position,
-# )
+from object_rewards.offline_policies.initialize_learner import init_learner
+from object_rewards.utils import (
+    get_point_cloud,
+    get_root_path,
+    crop_transform,
+    VideoRecorder,
+    apply_residuals,
+    flatten_homo_position,
+    homo_flattened_position,
+    get_initial_kinova_position,
+    wrist_rotation_to_kinova_position,
+)
 
 
 class BCH2R:
@@ -88,29 +86,18 @@ class BCH2R:
         self.initial_kinova_position = initial_kinova_position
 
         # Get the features mean and std
-        # NOTE: This is to fasten the deployment, when we change the dataset this should change
-        if load_dataset_info and os.path.exists("observations_std.npy"):
-            self.observations_std = np.load("observations_std.npy")
-            self.observations_mean = np.load("observations_mean.npy")
-            self.actions_std = np.load("actions_std.npy")
-            self.actions_mean = np.load("actions_mean.npy")
-        else:
-            dataset = hydra.utils.instantiate(cfg.dataset, cotracker_device=device)
-            self.dataset = dataset
-            if cfg.normalize_features:
-                self.observations_std, self.observations_mean = (
-                    dataset.observations_std,
-                    dataset.observations_mean,
-                )
-                self.actions_std, self.actions_mean = (
-                    dataset.actions_std,
-                    dataset.actions_mean,
-                )
 
-                np.save("observations_std.npy", self.observations_std)
-                np.save("observations_mean.npy", self.observations_mean)
-                np.save("actions_std.npy", self.actions_std)
-                np.save("actions_mean.npy", self.actions_mean)
+        dataset = hydra.utils.instantiate(cfg.dataset, cotracker_device=device)
+        self.dataset = dataset
+        if cfg.normalize_features:
+            self.observations_std, self.observations_mean = (
+                dataset.observations_std,
+                dataset.observations_mean,
+            )
+            self.actions_std, self.actions_mean = (
+                dataset.actions_std,
+                dataset.actions_mean,
+            )
 
         # Object detection parts
         self.object_image_subscriber = ZMQCameraSubscriber(
@@ -126,7 +113,7 @@ class BCH2R:
         self.image_transform = T.Compose(
             [
                 T.Resize((480, 640)),
-                T.Lambda(self._crop_transform),
+                T.Lambda(lambda image: crop_transform(image, camera_view=camera_id)),
             ]
         )
         self.object_camera_id = object_camera_id
@@ -138,7 +125,7 @@ class BCH2R:
             cam_idx=camera_id,
             marker_size=marker_size,
         )
-        self.H_B_C = calibrate_base.get_base_to_camera()
+        self.H_B_C = calibrate_base.load_base_to_camera()
 
         # Initialize the deploy api
         self.deploy_api = DeployAPI(
@@ -147,18 +134,9 @@ class BCH2R:
         self.host = host
 
         # Start the IK solver and the robot drivers to be able to get the fingertips
-        self.ik_threshold = ik_threshold
-        self.ik_lr = ik_learning_rate
-        self.ik_max_iter = ik_max_iterations
-        self.ik_finger_arm_weight = ik_finger_arm_weight
-        if cfg.action_dim == 12:
-            ik_compute_type = "position"
-        elif cfg.action_dim == 24:
-            ik_compute_type = "all"
         self.ik_solver = FingertipIKFullRobotSolver(
             urdf_path=f"{get_root_path()}/models/hand_and_arm_real_world.urdf",  # NOTE: I have updated the hand_and_arm_realworld urdf to the one with 2
             desired_finger_types=["index", "middle", "ring", "thumb"],
-            compute_type=ik_compute_type,
         )
 
         # Robot initialization
@@ -179,53 +157,10 @@ class BCH2R:
                 host=host, port=camera_port + camera_id, topic_type="RGB"
             )
 
-        # NOTE: Check this
-        self.home_state = dict(
-            kinova=np.array(
-                [
-                    0.17964783,
-                    -0.36079201,
-                    0.22108653,
-                    0.59371191,
-                    -0.56627101,
-                    0.41132048,
-                    0.3970626,
-                ]
-            ),
-            allegro=np.array(
-                [
-                    -0.0124863,
-                    -0.10063279,
-                    0.7970152,
-                    0.7542225,
-                    -0.01191735,
-                    -0.10746645,
-                    0.78338414,
-                    0.7421494,
-                    0.06945032,
-                    -0.02277208,
-                    0.8780185,
-                    0.76349473,
-                    1.0707821,
-                    0.424525,
-                    0.30425942,
-                    0.79608095,
-                ]
-            ),
-        )
-
-    def _crop_transform(self, image):
-        return crop_transform(image, self.object_camera_id)
-
     def _init_cotracker(self):
         print("** INITIALIZING COTRACKER **")
 
         # Capturing the image
-        # image, _ = self.object_image_subscriber.recv_rgb_image()
-        # # image = np.asarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-        # image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        # image = im.fromarray(image, "RGB")
-        # image = np.asarray(self.image_transform(image))
         image = self._get_curr_image()
 
         self.window_frames = [
@@ -267,7 +202,6 @@ class BCH2R:
 
         else:
             curr_points = tracks[-1, :, :].detach().cpu().numpy()
-            # print(f"curr_points: {curr_points}")
 
             # Translation
             # Calculate the translation difference
@@ -291,7 +225,6 @@ class BCH2R:
             n = np.cross(prev_feat_norm, curr_feat_norm)
             if (n == 0.0).all():
                 average_rot = 1e-12
-                # print("average_rot = 0")
             else:
                 rot = n / np.linalg.norm(n)
                 average_rot = np.mean(rot)
@@ -309,13 +242,11 @@ class BCH2R:
                 self.total_rotation,
             ]
         )
-        print(f"rot_and_trans: {rot_and_trans}")
         self.is_first_step = False
         return rot_and_trans
 
     def _get_obj_position(self, tracks):
 
-        print(f"obj position: {torch.mean(tracks[-1,:,:], dim=0)}")
         obj_position = torch.mean(tracks[-1, :, :], dim=0).detach().cpu()
         obj_position[0]
         obj_position[1]
@@ -329,19 +260,12 @@ class BCH2R:
         return image
 
     def _get_tracks(self):
-        # image, _ = self.object_image_subscriber.recv_rgb_image()
-        # image = (
-        #     torch.from_numpy(np.asarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB)))
-        #     .float()
-        #     .to(self.device)
-        # )
         image = torch.from_numpy(self._get_curr_image()).float().to(self.device)
         self.window_frames.append(image)
 
         pred_tracks, _ = self.cotracker_langsam.cotracker(
             video_chunk=self._get_video_chunk(), is_first_step=False, queries=None
         )
-        print(f"pred_tracks.shape: {pred_tracks.shape}")
 
         return pred_tracks[0, :, :, :]
 
@@ -350,11 +274,7 @@ class BCH2R:
         rot_and_trans = self._get_rot_and_trans(tracks=tracks)
         mean_position = self._get_obj_position(tracks=tracks)
 
-        print(
-            f"rot_and_trans.shape: {rot_and_trans.shape}, mean_pose.shape: {mean_position.shape}"
-        )
         final_obj_pose = torch.concat([rot_and_trans, mean_position], dim=0)
-        print(f"final_obj_pose: {final_obj_pose}")
 
         return final_obj_pose
 
@@ -388,26 +308,17 @@ class BCH2R:
 
         flattened_fingertips = flatten_homo_position(position=robot_fingertips_in_base)
 
-        print("flattened_fingertips.shape: {}".format(flattened_fingertips.shape))
-
         return torch.FloatTensor(flattened_fingertips)
 
     def get_current_observation(self):
 
-        if self.feature_type == "fingertips_only":
-            obs = self._get_fingertip_position()
-        elif self.feature_type == "object_only":
-            obs = self._get_obj_and_rot_trans()
-        elif self.feature_type == "fingertips_and_object":
-            obs = torch.concat(
-                [
-                    self._get_fingertip_position(),
-                    self._get_obj_and_rot_trans(),
-                ],
-                dim=-1,
-            )
-        else:
-            raise ValueError("Unsupported feature type: %s" % self.feature_type)
+        obs = torch.concat(
+            [
+                self._get_fingertip_position(),
+                self._get_obj_and_rot_trans(),
+            ],
+            dim=-1,
+        )
 
         if self.normalize_features:
             obs = (obs - self.observations_mean) / self.observations_std
@@ -415,22 +326,16 @@ class BCH2R:
         return obs
 
     def initialize_robot_position(self, wrist_extend_length):
-        if self.load_dataset_info and os.path.exists("wrist_to_base.npy"):
-            wrist_to_base = np.load("wrist_to_base.npy")
-            finger_roots_to_base = np.load("finger_roots_to_base.npy")
-        else:
-            wrist_to_base, finger_roots_to_base = (
-                self.dataset.get_initialization_wrist_and_finger_roots()
-            )
-            np.save("wrist_to_base.npy", wrist_to_base)
-            np.save("finger_roots_to_base.npy", finger_roots_to_base)
+
+        wrist_to_base, finger_roots_to_base = (
+            self.dataset.get_initialization_wrist_and_finger_roots()
+        )
 
         if self.initial_kinova_position is None:
             position = get_initial_kinova_position(
                 wrist_to_base,
                 finger_roots_to_base,
                 wrist_extend_length,
-                wrist_raise=0.05,
             )
         else:
             position = self.initial_kinova_position
@@ -518,18 +423,13 @@ class BCH2R:
                 )
                 current_joint_positions = self._get_current_joint_positions()
 
-                joint_command = {}
+                robot_command = {}
                 action, _ = self.ik_solver.inverse_kinematics(
                     desired_poses=fingertips_to_base[:4],
                     current_joint_positions=current_joint_positions,
                     desired_orientation_poses=fingertips_to_base[4:],
-                    threshold=self.ik_threshold,
-                    learning_rate=self.ik_lr,
-                    max_iterations=self.ik_max_iter,
-                    finger_arm_weight=self.ik_finger_arm_weight,  # NOTE: Add these as parameters eventually
                 )
-                # joint_command['kinova'] = action[:6]
-                joint_command["allegro"] = action[6:]
+                robot_command["allegro"] = action[6:]
 
                 # Get the cartesian command to apply in kinova
                 rotation_end_to_base = self.ik_solver.get_endeff_pose(
@@ -539,9 +439,9 @@ class BCH2R:
                 kinova_position = wrist_rotation_to_kinova_position(
                     rotation_end_to_base,
                 )
-                joint_command["kinova"] = kinova_position
+                robot_command["kinova"] = kinova_position
 
-                self.deploy_api.send_robot_action(joint_command)
+                self.deploy_api.send_robot_action(robot_command)
 
                 # Save the image
                 image, _ = self.image_subscriber.recv_rgb_image()
@@ -559,11 +459,6 @@ class BCH2R:
             self.video_recorder.save(f"deployment_{self.cfg.learner.type}.mp4")
 
     def run(self):
-        # Reset first
-        print("** RESETTING **")
-        self.deploy_api.send_robot_action(self.home_state)
-        time.sleep(2)
-
         self.deploy()
 
 
@@ -579,7 +474,7 @@ class BCH2RwPCD(BCH2R):  # Point cloud BC baseline
     def _get_pcd(self):
         depth_img, _ = self.depth_image_subscriber.recv_depth_image()
 
-        pcd = get_point_cloud_with_math(
+        pcd = get_point_cloud(
             color_img=None,
             depth_img=depth_img,
             filter_outliners=False,
@@ -596,21 +491,13 @@ class BCH2RwPCD(BCH2R):  # Point cloud BC baseline
 
     def get_current_observation(self):
 
-        if self.feature_type == "fingertips_only":
-            obs = self._get_fingertip_position()
-        elif self.feature_type == "object_only":
-            obs = self._get_obj_and_rot_trans()
-        elif self.feature_type == "fingertips_and_object":
-            obs = torch.concat(
-                [
-                    self._get_fingertip_position(),
-                    self._get_obj_and_rot_trans(),
-                ],
-                dim=-1,
-            )
-        else:
-            raise ValueError("Unsupported feature type: %s" % self.feature_type)
-
+        obs = torch.concat(
+            [
+                self._get_fingertip_position(),
+                self._get_obj_and_rot_trans(),
+            ],
+            dim=-1,
+        )
         if self.normalize_features:
             obs = (obs - self.observations_mean) / self.observations_std
 
@@ -634,8 +521,6 @@ class BCH2RwPCD(BCH2R):  # Point cloud BC baseline
 
         pcd = stacked_obs[0].unsqueeze(0).to(self.device)
         ft_obj = stacked_obs[1].unsqueeze(0).to(self.device)
-        print(f"in get_actions - pcd.shape: {pcd.shape}")
-        print(f"in get_actions - ft_obj.shape: {ft_obj.shape}")
 
         actions = (
             self.learner.predict(

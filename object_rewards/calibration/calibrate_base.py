@@ -23,7 +23,9 @@ from object_rewards.utils.constants import *
 # pics with realsense
 class CalibrateBase:
 
-    def __init__(self, host, calibration_pics_dir, cam_idx, marker_size=0.05):
+    def __init__(
+        self, host, calibration_pics_dir, cam_idx, marker_size=HAND_ARUCO_SIZE
+    ):
 
         # Create the directory if it doesn't exist
         os.makedirs(calibration_pics_dir, exist_ok=True)

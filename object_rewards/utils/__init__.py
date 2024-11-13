@@ -6,6 +6,7 @@ from .exploration import *
 from .files import *
 from .metrics import *
 from .point_cloud import *
+from .replay_buffer import *
 from .trajectory import *
 from .transforms import *
 from .video_recorder import *

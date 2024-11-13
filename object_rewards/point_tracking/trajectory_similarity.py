@@ -248,44 +248,14 @@ class TrajSimilarity:
 
         return -sinkhorn_rew_scale * traj_dist
 
-    def _get_dynamic_time_warping(self, curr_traj, ref_traj, is_ot, sinkhorn_rew_scale):
+    def _get_dynamic_time_warping(self, curr_traj, ref_traj, sinkhorn_rew_scale):
         # Get alignment for each dimension of the trajectory, and find the difference
         # on the alignment of the arrays
         dim_alignment = dtw(curr_traj, ref_traj, keep_internals=True)
 
-        if is_ot:
-
-            # Set the cost matrix
-            cost_matrix = np.zeros(
-                (dim_alignment.index1.shape[0], dim_alignment.index2.shape[0])
-            )
-            for i, cost_i in enumerate(dim_alignment.index1):
-                for j, cost_j in enumerate(dim_alignment.index2):
-                    cost_matrix[i, j] = dim_alignment.costMatrix[
-                        cost_i, cost_j
-                    ] / np.max(
-                        dim_alignment.costMatrix
-                    )  # cost matrix is very high
-
-            transport_plan = optimal_transport_plan(
-                curr_traj[dim_alignment.index1],
-                ref_traj[dim_alignment.index2],
-                cost_matrix,
-                method="sinkhorn",
-                niter=100,
-                exponential_weight_init=False,
-                as_torch=False,
-            )
-
-            dim_reward = -sinkhorn_rew_scale * np.diag(
-                np.dot(transport_plan, cost_matrix.T)
-            )
-
-        else:
-
-            dim_reward = -sinkhorn_rew_scale * np.abs(
-                curr_traj[dim_alignment.index1] - ref_traj[dim_alignment.index2]
-            )
+        dim_reward = -sinkhorn_rew_scale * np.abs(
+            curr_traj[dim_alignment.index1] - ref_traj[dim_alignment.index2]
+        )
 
         return dim_reward
 
@@ -390,7 +360,6 @@ def test_similarities(expert_track_path, episode_track_paths):
                     curr_tracks=all_episode_tracks[episode_id],
                     ref_tracks=expert_tracks,
                     sinkhorn_rew_scale=sinkhorn_rew_scale,
-                    is_ot=True,
                 )
 
                 if episode_id == 0:  # Update the scale and get the similarities again
@@ -405,10 +374,7 @@ def test_similarities(expert_track_path, episode_track_paths):
                         curr_tracks=all_episode_tracks[episode_id],
                         ref_tracks=expert_tracks,
                         sinkhorn_rew_scale=sinkhorn_rew_scale,
-                        is_ot=True,
                     )
-
-                # print(f"similarities.shape: {similarities.shape}")
 
                 print(
                     f"episode_id: {episode_id}, col_id: {col_id} shapes: {sim.ref_traj[:, 0].shape}, {sim.curr_traj[:, 0].shape}"
@@ -461,10 +427,6 @@ def test_similarities(expert_track_path, episode_track_paths):
                     f"Reward Sum: {np.around(sum, 2)}, len(similarities): {len(similarities)}"
                 )
 
-                # axs[episode_id, col_id].set_ylim(
-                #     np.min(similarities), np.max(similarities)
-                # )
-
             col_id += 1
 
     plt.savefig("trajectory_similarities_test.png", bbox_inches="tight")
@@ -492,10 +454,7 @@ def plot_trajectories(expert_track_path, episode_track_paths):
     red_to_green_cmap = cm.get_cmap("RdYlGn", nlines)
 
     sorted_episode_ids = np.argsort(episode_nums)
-    print(
-        f"sorted episode numbers: {episode_nums[sorted_episode_ids]}, pre sort: {episode_nums}"
-    )
-    # return
+
     for i, episode_id in enumerate(sorted_episode_ids[:]):
 
         episode_tracks = all_episode_tracks[episode_id]
@@ -517,8 +476,6 @@ def plot_trajectories(expert_track_path, episode_track_paths):
         episode_num = episode_nums[episode_id]
 
         if i == 0:
-            # plot the referance
-            print(f"ref_traj.shape: {sim.ref_traj.shape}")
 
             axs[0].plot(sim.ref_traj[:, 0], label="Human Traj", color="orange")
             axs[1].plot(sim.ref_traj[:, 1], label="Human Traj", color="orange")

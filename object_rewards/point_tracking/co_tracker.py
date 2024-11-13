@@ -172,7 +172,7 @@ class CoTrackerLangSam:
     def __init__(
         self,
         device,
-        checkpoint_path="/home/irmak/Workspace/co-tracker/checkpoints/cotracker2.pth",
+        checkpoint_path="/home/irmak/Workspace/co-tracker/checkpoints/cotracker2.pth", # TODO: co-tracker checkpoint path
         is_online=True,
         frame_by_frame=False,
         grid_size=50,

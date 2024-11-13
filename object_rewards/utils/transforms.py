@@ -1,7 +1,8 @@
+import cv2
 import math
-
 import numpy as np
 import torch
+from cv2 import aruco
 from scipy.spatial.transform import Rotation
 
 
@@ -83,6 +84,58 @@ def apply_residuals(demo_residuals, action, inverse=False):
                 action[:, j, 3] += demo_residuals[j]
     return action
 
+
+def get_average_aruco_in_frame(
+    frames, intrinsics_matrix, distortion_matrix, aruco_id, marker_size
+):
+    # frames: (N, img_shape) [img_gray], aruco_id: ID of the aruco to be detected, intrinsics / distortion: camera params of the frame to be used
+    aruco_dict = aruco.getPredefinedDictionary(aruco.DICT_6X6_250)
+    parameters = aruco.DetectorParameters()
+    aruco_detector = aruco.ArucoDetector(
+        dictionary=aruco_dict, detectorParams=parameters
+    )
+
+    pts_2d = []
+    pts_3d = []
+    for frame in frames:
+        corners, ids, _ = aruco_detector.detectMarkers(frame)
+
+        # print("in get_average_aruco_in_frame - ids: {}".format(ids))
+        for i in range(len(corners)):
+            if ids[i][0] == aruco_id:
+                pt_2d = corners[i]
+                pts_2d.append(pt_2d.squeeze())
+
+                # Generate the 3d points (they are wrt the base of the aruco)
+                pt_3d = np.array(
+                    [
+                        [-marker_size / 2, marker_size / 2, 0],
+                        [marker_size / 2, marker_size / 2, 0],
+                        [marker_size / 2, -marker_size / 2, 0],
+                        [-marker_size / 2, -marker_size / 2, 0],
+                    ],
+                    dtype=np.float32,
+                )
+                pts_3d.append(pt_3d)
+
+    if len(pts_3d) == 0 or len(pts_2d) == 0:
+        return None
+
+    pts_3d = np.concatenate(pts_3d)
+    pts_2d = np.concatenate(pts_2d)
+
+    _, aruco_rvec, aruco_tvec = cv2.solvePnP(
+        pts_3d,
+        pts_2d,
+        cameraMatrix=intrinsics_matrix,
+        distCoeffs=distortion_matrix,
+        flags=cv2.SOLVEPNP_SQPNP,
+    )
+
+    rot_mtx = Rotation.from_rotvec(aruco_rvec.squeeze()).as_matrix()
+    homo_frame_to_aruco = turn_frames_to_homo(rvec=rot_mtx, tvec=aruco_tvec.squeeze())
+
+    return homo_frame_to_aruco  # H_F_A
 
 # Taken from https://github.com/UT-Austin-RPL/deoxys_control
 def quat_multiply(quaternion1, quaternion0):

@@ -2,27 +2,26 @@
 
 import os
 import pickle
-
+from tqdm import tqdm
 import cv2
 import h5py
 import numpy as np
 from openteach.utils.network import ZMQCameraSubscriber
 
-from third_person_man.calibration.utils import get_average_aruco_in_frame
-from third_person_man.point_cloud.oculus_utils import *
-from third_person_man.point_cloud.pointcloud_utils import *
-from third_person_man.utils import (
-    transform_utils,
+
+from object_rewards.utils import (
     turn_frames_to_homo,
-    turn_homo_to_frames,
+    aruco_in_world, 
+    get_markers,
+    get_average_aruco_in_frame
 )
-from third_person_man.utils.constants import TABLE_ARUCO_ID
+from object_rewards.utils.constants import TABLE_ARUCO_ID, HAND_ARUCO_SIZE
 
 
 class CalibrateFingertips:
 
     def __init__(
-        self, demo_path, realsense_view_num, marker_size, host, camera_port, H_A_C=None
+        self, demo_path, realsense_view_num, host, camera_port, marker_size=HAND_ARUCO_SIZE, H_A_C=None
     ):
 
         self.demo_path = demo_path

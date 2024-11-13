@@ -86,7 +86,6 @@ class BCH2R:
         self.initial_kinova_position = initial_kinova_position
 
         # Get the features mean and std
-
         dataset = hydra.utils.instantiate(cfg.dataset, cotracker_device=device)
         self.dataset = dataset
         if cfg.normalize_features:

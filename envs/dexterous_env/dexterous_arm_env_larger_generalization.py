@@ -56,10 +56,6 @@ class DexterityEnvLargerGeneralization(DexterityEnvTracking):
             desired_poses=action[:4],
             current_joint_positions=current_joint_positions,
             desired_orientation_poses=None,
-            threshold=self.ik_threshold,
-            learning_rate=self.ik_learning_rate,
-            max_iterations=self.ik_max_iterations,
-            finger_arm_weight=self.ik_finger_arm_weight,
         )
         robot_action_dict = dict(
             allegro=solver_action[6:],

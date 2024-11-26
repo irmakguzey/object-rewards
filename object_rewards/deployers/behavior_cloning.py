@@ -426,7 +426,7 @@ class BCH2R:
                 action, _ = self.ik_solver.inverse_kinematics(
                     desired_poses=fingertips_to_base[:4],
                     current_joint_positions=current_joint_positions,
-                    desired_orientation_poses=fingertips_to_base[4:],
+                    desired_orientation_poses=None,
                 )
                 robot_command["allegro"] = action[6:]
 

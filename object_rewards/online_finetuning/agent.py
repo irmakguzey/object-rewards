@@ -1,9 +1,6 @@
 import hydra
 import numpy as np
 import torch
-from openteach.utils.network import ZMQCameraSubscriber
-from PIL import Image as im
-from torchvision import transforms as T
 
 from object_rewards.utils import (
     flatten_homo_action,
@@ -13,18 +10,14 @@ from object_rewards.utils import (
     load_all_episodes, 
     merge_all_episodes
 )
-from third_person_man.utils.models import init_encoder
-
 torch.set_printoptions(precision=4)
 
 
-class H2RTAVI: # TODO: Clean all this!!
+class Agent:
 
     def __init__(
         self,
         offset_mask,
-        data_representations,
-        image_out_dir,
         features_repeat,
         host,
         experiment_name,
@@ -39,11 +32,9 @@ class H2RTAVI: # TODO: Clean all this!!
         normalize_features,
         buffer_path,
         num_expl_steps,
-        explore_arm=False,
         **kwargs,
     ):
 
-        self.data_representations = data_representations
         self.features_repeat = features_repeat
         self.experiment_name = experiment_name
         self.view_num = view_num
@@ -56,7 +47,6 @@ class H2RTAVI: # TODO: Clean all this!!
         self.delta_actions = delta_actions
         self.nstep = nstep  # This is used if the delta actions are supposed to be inputted to the model
         self.normalize_base_actions = normalize_base_actions
-        self.explore_arm = explore_arm
 
         self.buffer_path = buffer_path
         self.normalize_features = normalize_features
@@ -141,6 +131,7 @@ class H2RTAVI: # TODO: Clean all this!!
         )
 
         # NOTE: When we returned the actual all actions_min and etc, they tend to
+        # be unbalanced and could cause noise
         return -limit, limit
 
     def _calculate_buffer_mean_and_std(self, key):
@@ -175,12 +166,9 @@ class H2RTAVI: # TODO: Clean all this!!
             rewarder_cfg,
         )
 
-        # explorer_cfg.action_shape = self.action_shape
-        explorer_cfg.action_shape = self.action_shape
         self.explorer = hydra.utils.instantiate(explorer_cfg)
 
         rl_learner_cfg.repr_dim = self.repr_dim
-        rl_learner_cfg.action_shape = self.action_shape
         if self.normalize_base_actions:
             action_min, action_max = self._calculate_base_action_limits()
             rl_learner_cfg.base_action_limits = [
@@ -189,7 +177,6 @@ class H2RTAVI: # TODO: Clean all this!!
             ]  # This method uses base_policy
         else:
             rl_learner_cfg.base_action_limits = None
-
         self.rl_learner = hydra.utils.instantiate(rl_learner_cfg)
 
         # NOTE: We should do this here, because in the init we don't have the base policy
@@ -197,16 +184,13 @@ class H2RTAVI: # TODO: Clean all this!!
             self.prev_actions = self._get_prev_actions()
 
     def _add_offset_to_action(self, action, offset_action):
-        # action: (8,4,4) -> homogenous matrix for each finger + finger orientation
-        # offset action: (24,) / (12,) -> offset in translation for each of the dimensions
+        # action: (4,4,4) -> homogenous matrix for each finger + finger orientation
+        # offset action: (12,) -> offset in translation for each of the dimensions
         offsetted_action = []
         for i, ft_action in enumerate(action):
             ft_rvec, ft_tvec = turn_homo_to_frames(ft_action)
             finger_id = i % 4
-            if self.explore_arm:  # Apply the same offset to all the fingers
-                offset_tvec = offset_action[:]
-            else:
-                offset_tvec = offset_action[finger_id * 3 : (finger_id + 1) * 3]
+            offset_tvec = offset_action[finger_id * 3 : (finger_id + 1) * 3]
 
             new_ft_action = turn_frames_to_homo(
                 rvec=ft_rvec, tvec=ft_tvec + offset_tvec
@@ -218,7 +202,7 @@ class H2RTAVI: # TODO: Clean all this!!
         # This will be used in the last moment anyways
         return offsetted_action
 
-    def _get_policy_reprs_from_obs(self, image_obs, features):
+    def _get_policy_reprs_from_obs(self, features):
 
         # Normalize the features if desired
         features = features.to(self.device)
@@ -247,7 +231,6 @@ class H2RTAVI: # TODO: Clean all this!!
         with torch.no_grad():
             # Get the policy representations
             obs = self._get_policy_reprs_from_obs(
-                image_obs=obs["image_obs"].unsqueeze(0),
                 features=obs["features"].unsqueeze(0),
             )
         flattened_base_action = flatten_homo_action(action=base_action).to(self.device)
@@ -351,10 +334,10 @@ class H2RTAVI: # TODO: Clean all this!!
         # We will return none for representations that are not used in training
         with torch.no_grad():
             obs = self._get_policy_reprs_from_obs(
-                image_obs=image_obs, features=features
+                features=features
             )
             next_obs = self._get_policy_reprs_from_obs(
-                image_obs=next_image_obs, features=next_features
+                features=next_features
             )
         metrics["batch_reward"] = reward.mean().item()
 

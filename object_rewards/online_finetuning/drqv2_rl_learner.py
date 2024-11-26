@@ -230,7 +230,6 @@ class DRQv2(RLLearner):
         stddev_clip,
         residual_limit,
         offset_mask,
-        is_critic_residual=False,
         **kwargs,
     ):
 
@@ -252,7 +251,6 @@ class DRQv2(RLLearner):
         self.lr = lr
         self.actor_opt = torch.optim.Adam(self.actor.parameters(), lr=lr)
         self.critic_opt = torch.optim.Adam(self.critic.parameters(), lr=lr)
-        self.is_critic_residual = is_critic_residual
 
         self.stddev_clip = stddev_clip
         self.stddev_schedule = stddev_schedule

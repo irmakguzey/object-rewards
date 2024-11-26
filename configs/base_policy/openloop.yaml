@@ -1,0 +1,8 @@
+_target_: object_rewards.offline_policies.openloop_base_policy.OpenloopHuman2Robot
+host: ${host} 
+camera_port: ${rgbd_camera_port} # Calibration is always done through RGBD cameras 
+camera_id: ${calibration_camera_id}
+view_num: ${policy_camera_id}
+data_path: ${data_path}
+demo_num: ${task.demo_num}
+calibration_pics_dir: ${calibration_pics_dir}

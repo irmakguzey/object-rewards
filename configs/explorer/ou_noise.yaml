@@ -1,0 +1,3 @@
+_target_: object_rewards.online_finetuning.ou_noise_exploration.OUNoise
+num_expl_steps: ${num_expl_steps}
+residual_limit: ${residual_limit}

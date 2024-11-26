@@ -53,7 +53,7 @@ class OpenloopHuman2Robot:
 
         return H_F_B
 
-    def initialize_robot_position(self, wrist_extend_length=0):
+    def initialize_robot_position(self):
         frame_id = self.demo_action_ids[0]
         wrist_to_base = self.get_keypoint_to_base(
             frame_id=frame_id, keypoint_type="wrist"
@@ -62,7 +62,7 @@ class OpenloopHuman2Robot:
             frame_id=frame_id, keypoint_type="finger_roots"
         )
         position = get_initial_kinova_position(
-            wrist_to_base, fingertips_to_base, wrist_extend_length, wrist_raise=0.05
+            wrist_to_base, fingertips_to_base, wrist_extend_length=0.05, wrist_raise=0.05
         )
 
         return position

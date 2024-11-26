@@ -5,7 +5,7 @@ from object_rewards.utils.constants import EEF_TO_END
 
 
 def get_initial_kinova_position(
-    wrist_to_base, fingertips_to_base, wrist_extend_length=0.0, wrist_raise=0.05
+    wrist_to_base, fingertips_to_base, wrist_extend_length=0.05, wrist_raise=0.05
 ):
 
     # we extend on the vector from middle_3 to wrist

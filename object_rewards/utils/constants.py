@@ -1,5 +1,9 @@
 import numpy as np
 
+# Constans for camera images
+VISION_IMAGE_MEANS = [0.4191, 0.4445, 0.4409]
+VISION_IMAGE_STDS = [0.2108, 0.1882, 0.1835]
+
 REALSENSE_ALL_INTRINSICS = {
     0: np.array(  # These intrinsics are for the camera id 1 - 141722071999
         [

@@ -13,24 +13,24 @@ from object_rewards.utils import crop_transform, get_demo_action_ids
 class ObjectRewarder:
     def __init__(
         self,
+        method_type,
+        input_type,
         data_path,
         human_demo_num,
         view_num,
         device,
         human_prompt,
         robot_prompt,
-        sinkhorn_rew_scale,
-        auto_rew_scale_factor,
         expert_frame_matches,
         episode_frame_matches,
+        sinkhorn_rew_scale,
+        auto_rew_scale_factor,
         experiment_name,
         work_dir,
         cotracker_grid_size,
-        method_type,
-        input_type,
         normalize_traj,
         normalize_importance,
-        is_fish_eye=False,
+        use_rgb_camera=False,
         **kwargs,
     ):
 
@@ -50,7 +50,7 @@ class ObjectRewarder:
         self.expert_frame_matches = expert_frame_matches
         self.episode_frame_matches = episode_frame_matches
         self.experiment_name = experiment_name
-        self.is_fish_eye = is_fish_eye
+        self.use_rgb_camera = use_rgb_camera
         self.normalize_traj = normalize_traj
 
         self.dump_path = os.path.join(
@@ -90,7 +90,7 @@ class ObjectRewarder:
 
         dir_name = (
             f"cam_{self.view_num}_fish_eye_images"
-            if self.is_fish_eye
+            if self.use_rgb_camera
             else f"cam_{self.view_num}_rgb_images"
         )
 
@@ -105,7 +105,7 @@ class ObjectRewarder:
         # Get all the images
         indices_file_name = (
             f"image_indices_fish_eye_cam_{self.view_num}.pkl"
-            if self.is_fish_eye
+            if self.use_rgb_camera
             else f"image_indices_cam_{self.view_num}.pkl"
         )
         image_indices_path = os.path.join(self.demo_path, indices_file_name)

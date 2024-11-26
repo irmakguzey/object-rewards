@@ -7,7 +7,7 @@ demo_num: 3
 policy_residuals: [0, -0.01, 0.013]
 
 # Tracking parameters
-is_fish_eye: # TODO -- add this to calculate by using the port number
+use_rgb_camera: False
 cotracker_grid_size: 100 
 object_camera_port: ${rgbd_camera_port}
 object_camera_id: 0 
@@ -37,6 +37,3 @@ make_fn:
   text_prompt: ${task.robot_prompt}
   cotracker_grid_size: ${task.cotracker_grid_size}
   device: ${device}
-  calibration_dir: ${calibration_dir}
-  policy_residuals: ${task.policy_residuals}
-

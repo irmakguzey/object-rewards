@@ -35,11 +35,12 @@ class Workspace:
         # Initialize the agent
         self._initialize_agent()
 
+        # Start the robot processes
+        self._processes = self._setup_processes()
+
+        # Set the environment related parameters
         # The agent will give the initial position of the wrist
         kinova_pose = self.agent.base_policy.initialize_robot_position() # in centimeters
-
-        self._processes = self._setup_processes()
-        # Set the environment related parameters
         self._env_setup(kinova_pose)
 
         # Set the image transform
@@ -93,7 +94,7 @@ class Workspace:
         self._env_resources = {}
 
         self.train_env = hydra.utils.call(  # If not call the actual interaction environment
-            self.cfg.task.task_make_fn,
+            self.cfg.task.make_fn,
             robot_initial_pose=kinova_initial_pose,
             **self._env_resources,
         )

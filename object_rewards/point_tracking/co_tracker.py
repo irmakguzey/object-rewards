@@ -25,8 +25,8 @@ from object_rewards.utils.visualization import (
 class CoTrackerLangSam:
     def __init__(
         self,
-        device,
-        checkpoint_path="/home/irmak/Workspace/co-tracker/checkpoints/cotracker2.pth", # TODO: co-tracker checkpoint path
+        device=0,
+        checkpoint_path="../checkpoints/cotracker2.pth", # TODO: co-tracker checkpoint path
         is_online=True,
         frame_by_frame=False,
         grid_size=50,
@@ -44,7 +44,6 @@ class CoTrackerLangSam:
         else:
             self.cotracker = CoTrackerPredictor(checkpoint=checkpoint_path).to(device)
 
-        # self.langsam = LangSAM()
         self.total_translation, self.total_rotation = (
             np.zeros(2, dtype=np.float32),
             0.0,

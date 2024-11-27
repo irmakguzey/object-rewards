@@ -147,18 +147,23 @@ if __name__ == "__main__":
 
     # Example usage
     get_segmented_video(
-        video_path="video.mp4",
+        video_path="human_video_without_mask.mp4",
         object_prompt="orange bread",
-        segm_video_name="orange_bread_in_video",
+        segm_video_name="human_segmented_video",
+    )
+    get_segmented_video(
+        video_path="robot_video_without_mask.mp4",
+        object_prompt="orange bread",
+        segm_video_name="robot_segmented_video",
     )
 
     # Example usage
-    get_segmented_video_from_human_demonstrations(
-        data_path = '/data/card_sliding',
-        view_num = 0, 
-        demo_num = 3, 
-        is_fish_eye = False, 
-        object_prompt = 'orange card',
-        segm_video_name='human_card_sliding_cotracker_vis'
-    )
+    # get_segmented_video_from_human_demonstrations(
+    #     data_path = '/data/card_sliding',
+    #     view_num = 0, 
+    #     demo_num = 3, 
+    #     is_fish_eye = False, 
+    #     object_prompt = 'orange card',
+    #     segm_video_name='human_card_sliding_cotracker_vis'
+    # )
 

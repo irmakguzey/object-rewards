@@ -144,15 +144,9 @@ class ObjectRewarder:
         if frame_matches != -1:
             frames = frames[-frame_matches:]
 
-        if self.requires_special_reset:
-            # Use the queries received from the resetting
-            tracks = self.predictor.get_segmented_tracks_by_batch(
-                frames=frames, queries=self.reset_queries
-            )
-        else:
-            tracks = self.predictor.get_segmented_tracks_by_batch(
-                frames=frames, text_prompt=prompt
-            )
+        tracks = self.predictor.get_segmented_tracks_by_batch(
+            frames=frames, text_prompt=prompt
+        )
 
         if visualize:
             self.predictor.visualize_tracks(
@@ -194,8 +188,6 @@ class ObjectRewarder:
         episode_tracks = self._get_episode_tracks(
             obs=obs, visualize=True, episode_id=episode_id
         )
-
-        # min_num_points = min(episode_tracks.shape[1], self.expert_pred_tracks.shape[1])
 
         similarities = self.traj_matcher.get(
             curr_tracks=episode_tracks,

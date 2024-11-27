@@ -38,7 +38,7 @@ class TrajSimilarity:
         normalize_traj=True,
         curr_traj_frame_matches=-1,  # The last number of frames to include for the tracking
         ref_traj_frame_matches=-1,
-        normalize_importance=True,
+        normalize_importance=False,
         img_shape=(640.0, 480.0),
     ):
         self.method_type = method
@@ -203,7 +203,7 @@ class TrajSimilarity:
         plt.savefig(f"{plot_name}.png")
         plt.close()
 
-    def _get_kl_divergence(self, curr_traj, ref_traj, sinkhorn_rew_scale, **kwargs):
+    def _get_kl_divergence(self, curr_traj, ref_traj, sinkhorn_rew_scale=1, **kwargs):
         # Take the abs of them
         curr_traj_abs = np.abs(curr_traj)
         ref_traj_abs = np.abs(ref_traj)
@@ -226,7 +226,7 @@ class TrajSimilarity:
         return -np.sum(rel_entr_result, axis=-1)
 
     def _get_optimal_transport(
-        self, curr_traj, ref_traj, sinkhorn_rew_scale=10, **kwargs
+        self, curr_traj, ref_traj, sinkhorn_rew_scale=1, **kwargs
     ):
 
         cost_matrix = cosine_distance(curr_traj, ref_traj, as_torch=False)
@@ -242,13 +242,13 @@ class TrajSimilarity:
         )
         return -sinkhorn_rew_scale * np.diag(np.dot(transport_plan, cost_matrix.T))
 
-    def _get_mean_sqr(self, curr_traj, ref_traj, sinkhorn_rew_scale, **kwargs):
+    def _get_mean_sqr(self, curr_traj, ref_traj, sinkhorn_rew_scale=1, **kwargs):
         diff = ref_traj - curr_traj
         traj_dist = np.linalg.norm(diff, axis=1)
 
         return -sinkhorn_rew_scale * traj_dist
 
-    def _get_dynamic_time_warping(self, curr_traj, ref_traj, sinkhorn_rew_scale):
+    def _get_dynamic_time_warping(self, curr_traj, ref_traj, sinkhorn_rew_scale=1):
         # Get alignment for each dimension of the trajectory, and find the difference
         # on the alignment of the arrays
         dim_alignment = dtw(curr_traj, ref_traj, keep_internals=True)

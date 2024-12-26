@@ -1,0 +1,93 @@
+defaults:
+  - agent: agent
+  - base_policy: openloop_res
+  - rl_learner: drqv2
+  - explorer: scheduled_ou_noise
+  - rewarder: object_rewards
+  - task: h2r_music_box_larger_generalization
+
+work_dir: "."
+seed: 5
+device: 0
+frequency: 5
+
+# Environment
+host: 172.24.71.240
+rgbd_camera_port: 10005
+rgb_camera_port: 10010
+calibration_camera_id: 0
+policy_camera_id: 0
+
+# Training params
+num_train_frames: 10000 # Total training numbers
+num_seed_frames: 5000 # Frames until training starts
+num_expl_steps: ${num_seed_frames} # Frames of full__xploration
+eval_every_episodes: 20 # Evaluate in each every 20 episodes passed
+num_eval_episodes: 20
+evaluate: True
+
+# Agent params
+features_repeat: 1 #50 # Number to how many times to repeat the features as the input to the model
+frame_stack: 1
+action_repeat: 1
+update_critic_frequency: 1
+update_critic_target_frequency: 4
+update_actor_frequency: 4
+critic_action_repeat: 1 # 50
+actor_action_repeat: 1 # 50
+discount: 0.99
+action_shape: 12
+
+# Exploration / Agent
+residual_limit: ${task.residual_limit}
+offset_mask: ${task.offset_mask}
+delta_actions: True
+delta_residual_actions: False
+normalize_base_actions: True # If true agent will calculate the max and min of the base actions and give them as limits to the models
+normalize_features: True # If true, after the exploration is over we calculate the mean and std
+
+# Replay buffer params
+replay_buffer_size: 150000
+replay_buffer_num_workers: 2
+batch_size: 64
+nstep: 3
+buffer_path: null
+
+# Recorder
+save_eval_video: True
+save_train_video: True
+save_train_cost_matrices: True
+
+# Snapshot Saving / Loading
+save_snapshot: True
+load_snapshot: False
+snapshot_weight: null
+
+# Calibration
+calibration_pics_dir: calibration_pics_dir
+
+# Data
+data_path: ${task.data_path}
+
+log: False
+experiment: ${now:%Y.%m.%d}T${now:%H-%M}_${task.name}_${rewarder.name}
+wandb_project_name: third-person-man-${agent.name}-${task.name}
+
+processes:
+  - _target_: third_person_man.utils.processes.DeployServer
+    script_path: "../Open-Teach/deploy_server.py"
+    reset_every_count: 2
+  - _target_: third_person_man.utils.processes.AllegroLaunch
+    launch_command:
+      ["roslaunch", "allegro_hand", "allegro_hand_on_kinova_nuc.launch"]
+    reset_every:
+      _target_: datetime.timedelta
+      hours: 2
+    reset_duration:
+      _target_: datetime.timedelta
+      minutes: 10
+
+# hydra configuration - should be received separately
+hydra:
+  run:
+    dir: ${work_dir}/out/${now:%Y.%m.%d}/${experiment}

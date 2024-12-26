@@ -1,0 +1,52 @@
+defaults:
+    - learner: vq_bet
+    - dataset: sequential
+
+optimizer:
+  lr: 5.5e-5
+  weight_decay: 2e-4
+  betas: [0.9, 0.999]
+
+seed: 42
+device: cuda:2
+
+learner_type: ${learner.type} # Can be bet, bc_gmm, image_byol, tactile_stacked_byol # tactile_stacked_byol tactile_linear_byol, bc, tactile_byol
+self_supervised: false
+
+# Dataset parameters for behavior learning
+action_dim: 12
+obs_dim: 12
+traj_len: 1
+action_chunking_len: 5
+ts_step: 5
+feature_type: fingertips_only
+
+# vqvae_load_dir: trained_vq_vae.pt 
+delta_actions: false
+normalize_features: true
+
+# Hyperparameters to be used everywhere
+batch_size: 256
+vision_view_num: 0
+train_epochs: 200
+save_frequency: 10
+train_dset_split: 0.90
+
+distributed: false
+num_workers: 4
+
+# Data path to be set
+task: card_sliding
+data_path: tasks/${task}
+checkpoint_dir: ??? # Will be set to hydra dir inside the code
+
+# logger
+log: true # To init logger or not
+log_frequency: 1
+wandb_project_name: third-person-man-${task}
+experiment: ${now:%Y.%m.%d}T${now:%H-%M}_${learner.type}_${task}_ft_${feature_type}_ac_${action_chunking_len}_da_${delta_actions}_nf_${normalize_features}
+
+# hydra configuration - should be received separately
+hydra:
+    run:
+        dir: .

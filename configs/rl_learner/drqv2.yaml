@@ -1,0 +1,33 @@
+_target_: object_rewards.online_finetuning.DRQv2 
+action_shape: ${action_shape}
+repr_dim: ??? # This is set to be equal to a multiplication with the output and feature repeat
+device: ${device}
+actor: ${rl_learner.actor_cfg} 
+critic: ${rl_learner.critic_cfg}
+critic_target: ${rl_learner.critic_cfg}
+
+
+critic_target_tau: 0.01
+stddev_schedule: 0.1
+stddev_clip: 0.1
+lr: 1e-4 
+
+# offset limits
+residual_limit: ${residual_limit}
+offset_mask: ${offset_mask}
+
+actor_cfg:
+  _target_: object_rewards.online_finetuning.Actor
+  action_shape: ${rl_learner.action_shape}
+  repr_dim: ${rl_learner.repr_dim}
+  hidden_dim: 64
+  action_repeat: ${actor_action_repeat}
+
+
+critic_cfg:
+  _target_: object_rewards.online_finetuning.Critic
+  action_shape: ${rl_learner.action_shape}
+  repr_dim: ${rl_learner.repr_dim}
+  hidden_dim: 64
+  feature_dim: 512
+  action_repeat: ${critic_action_repeat}

@@ -1,0 +1,34 @@
+bet_wrapper:
+  _target_: object_rewards.offline_policies.vq_behavior_transformer.bet.BehaviorTransformer
+  obs_dim: ${obs_dim}
+  act_dim: ${action_dim}
+  goal_dim: 0 # If goal_dim is 0, this is non conditional, else goal can be added
+  obs_window_size: ${traj_len}
+  act_window_size: ${action_chunking_len}
+  sequentially_select: False
+  visual_input: False
+  device: ${device}
+  gpt_model:
+    _target_: object_rewards.offline_policies.vq_behavior_transformer.gpt.GPT
+    config:
+      _target_: object_rewards.offline_policies.vq_behavior_transformer.gpt.GPTConfig
+      block_size: 110
+      input_dim: ${obs_dim}
+      n_layer: 3 # reduce this. Bring model size to 100k. MLP 4 hidden layer 256 size
+      n_head: 3 # reduce this 
+      n_embd: 60
+  vqvae_model: # vqvae parameters get set from the model
+    _target_: vqvae.VqVae
+    obs_dim: ${obs_dim}
+    input_dim_h: ???
+    input_dim_w: ???
+    n_latent_dims: ???
+    vqvae_n_embed: ???
+    vqvae_groups: ???
+    eval: true
+    device: ${device}
+    load_dir: ??? # ${vqvae_load_dir}
+  offset_loss_multiplier: 0.1
+  secondary_code_multiplier: 3
+
+type: vq_bet

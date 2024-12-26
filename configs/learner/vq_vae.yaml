@@ -1,0 +1,13 @@
+vqvae_wrapper:
+  _target_: object_rewards.offline_policies.vq_vae.vqvae.VqVae
+  input_dim_h: ${action_chunking_len}
+  input_dim_w: ${action_dim} # It will be 12 if it's the fingertips, 16 if it's joints
+  n_latent_dims: 256 # 512
+  vqvae_n_embed: 16
+  vqvae_groups: 2 
+  eval: false 
+  device: ???
+  enc_loss_type: through_vqlayer
+  residual: true
+
+type: vq_vae

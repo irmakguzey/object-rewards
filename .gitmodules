@@ -1,0 +1,18 @@
+[submodule "submodules/Open-Teach-HuDOR"]
+	path = submodules/Open-Teach-HuDOR
+	url = https://github.com/irmakguzey/Open-Teach-HuDOR
+[submodule "submodules/OpenTeach-Controllers"]
+	path = submodules/OpenTeach-Controllers
+	url = https://github.com/NYU-robot-learning/OpenTeach-Controllers.git
+[submodule "submodules/segment-anything"]
+	path = submodules/segment-anything
+	url = git@github.com:irmakguzey/segment-anything.git
+[submodule "submodules/co-tracker"]
+	path = submodules/co-tracker
+	url = git@github.com:irmakguzey/co-tracker.git
+[submodule "submodules/pointnet.pytorch"]
+	path = submodules/pointnet.pytorch
+	url = git@github.com:fxia22/pointnet.pytorch.git
+[submodule "submodules/GroundingDINO"]
+	path = submodules/GroundingDINO
+	url = git@github.com:IDEA-Research/GroundingDINO.git

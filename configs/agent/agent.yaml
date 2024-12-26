@@ -1,0 +1,26 @@
+_target_: object_rewards.online_finetuning.Agent
+
+# Features / Representations
+offset_mask: ${offset_mask} # This gets repeated for the orientations
+features_repeat: ${features_repeat} 
+nstep: ${nstep}
+delta_actions: ${delta_actions}
+normalize_base_actions: ${normalize_base_actions}
+normalize_features: ${normalize_features}
+
+# Environment 
+host: ${host}
+experiment_name: ${experiment} 
+view_num: ${policy_camera_id}
+device: ${device}
+
+# Learning base parameters 
+update_critic_frequency: ${update_critic_frequency}
+update_critic_target_frequency: ${update_critic_target_frequency}
+update_actor_frequency: ${update_actor_frequency}
+
+# Normalize Features
+buffer_path: ???
+num_expl_steps: ${num_expl_steps}
+
+name: h2r_agent

@@ -1,0 +1,19 @@
+
+
+_target_: object_rewards.datasets.sequential.SeqH2RDataset
+data_path: ${demo.data_path}
+host: <host>
+camera_id: ${vision_view_num}
+camera_port: 10005
+object_detection_camera_id: ${demo.object_detection_camera_id}
+marker_size: 0.05 
+calibration_pics_dir: calibration/pics/dir
+traj_len: ${traj_len}
+action_chunking_len: ${action_chunking_len}
+delta_actions: ${delta_actions}
+normalize_features: ${normalize_features}
+ts_step: ${ts_step}
+object_detection_camera_type: ${demo.data_path} 
+object_text_prompt: ${demo.object_text_prompt},
+cotracker_grid_size: ${demo.cotracker_grid_size}
+demo_residuals: ${demo.demo_residuals}

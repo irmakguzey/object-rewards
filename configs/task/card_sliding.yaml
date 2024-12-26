@@ -1,0 +1,39 @@
+name: card_sliding
+
+# Demo parameters
+task_name: H2R-DexterousTracking-v1
+data_path: tasks/card_sliding 
+demo_num: 3
+policy_residuals: [0, -0.01, 0.013]
+
+# Tracking parameters
+use_rgb_camera: False
+cotracker_grid_size: 100 
+object_camera_port: ${rgbd_camera_port}
+object_camera_id: 0 
+residual_limit: 0.01 
+offset_mask: [0,0,0,0,0,0,0,0,0,1,1,0]
+
+# Rewarder parameters
+normalize_axis_importance: False
+expert_frame_matches: -1 
+episode_frame_matches: -1 
+human_prompt: orange card 
+robot_prompt: orange card
+
+# Environment wrapper
+make_fn:
+  _target_: object_rewards.environments.gym_wrapper.make_h2r_envs_custom_params
+  name: ${task.task_name}
+  host: ${host} 
+  camera_num: ${task.object_camera_id}
+  camera_port: ${task.object_camera_port}
+  img_height: 480
+  img_width: 480
+  action_repeat: ${suite.action_repeat}
+  frame_stack: ${suite.frame_stack}
+  object_camera_port: ${task.object_camera_port}
+  object_camera_id: ${task.object_camera_id}
+  text_prompt: ${task.robot_prompt}
+  cotracker_grid_size: ${task.cotracker_grid_size}
+  device: ${device}

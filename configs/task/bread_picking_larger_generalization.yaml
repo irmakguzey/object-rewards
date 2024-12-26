@@ -1,0 +1,43 @@
+name: bread_picking_larger_generalization
+
+# Demo parameters
+task_name: H2R-DexterousTrackingLargerGen-v1
+data_path: /data/irmak/third_person_manipulation/bread_pick
+demo_num: 6
+policy_residuals: [0, 0, 0.02]
+demo_obj_residual: [-0.05, -0.10212626, -0.16829322]
+
+# Tracking parameters
+use_rgb_camera: False
+cotracker_grid_size: 100 
+object_camera_port: ${rgbd_camera_port}
+object_camera_id: 0 
+residual_limit: 0.05
+offset_mask: [1,0,0,1,0,0,1,0,0,1,0,0]
+
+# Rewarder parameters
+normalize_axis_importance: True
+expert_frame_matches: -1 
+episode_frame_matches: -1 
+human_prompt: orange bread 
+robot_prompt: orange bread
+
+# Environment wrapper
+make_fn:
+  _target_: object_rewards.environments.gym_wrapper.make_h2r_envs_custom_params
+  name: ${task.task_name}
+  host: ${host} 
+  camera_num: ${task.object_camera_id}
+  camera_port: ${task.object_camera_port}
+  img_height: 480
+  img_width: 480
+  action_repeat: ${suite.action_repeat}
+  frame_stack: ${suite.frame_stack}
+  object_camera_port: ${task.object_camera_port}
+  object_camera_id: ${task.object_camera_id}
+  text_prompt: ${task.robot_prompt}
+  cotracker_grid_size: ${task.cotracker_grid_size}
+  device: ${device}
+  calibration_dir: ${calibration_dir}
+  policy_residuals: ${task.policy_residuals}
+  demo_obj_residual: ${task.demo_obj_residual}

@@ -1,0 +1,29 @@
+_target_: object_rewards.online_finetuning.ObjectRewarder
+
+# Method related parameters
+method_type: 5 # Refer to TrajSimMethods.MEAN_SQR 
+input_type: 4 # Refer to TrajSimInputs.TRANSLATION
+normalize_traj: True
+normalize_importance: ${task.normalize_axis_importance}
+cotracker_grid_size: ${task.cotracker_grid_size}
+
+# Demo related parameters
+data_path: ${task.data_path}
+human_demo_num: ${task.demo_num}
+view_num: ${task.object_camera_id}
+human_prompt: ${task.human_prompt}
+robot_prompt: ${task.robot_prompt}
+expert_frame_matches: ${task.expert_frame_matches}
+episode_frame_matches: ${task.episode_frame_matches}
+
+# Reward value scales
+sinkhorn_rew_scale: 1.0
+auto_rew_scale_factor: 10
+
+# Setting parameters
+device: ${device}
+experiment_name: ${experiment}
+work_dir: ${work_dir}
+use_rgb_camera: ${task.use_rgb_camera}
+
+name: object_rewards

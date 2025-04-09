@@ -1,13 +1,12 @@
 import pickle
 
 import cv2
+from object_rewards.point_tracking import *
+from object_rewards.utils import crop_transform, get_demo_action_ids
 from PIL import Image as im
 from torchvision import transforms as T
 from torchvision.datasets.folder import default_loader as loader
 from tqdm import tqdm
-
-from object_rewards.point_tracking import *
-from object_rewards.utils import crop_transform, get_demo_action_ids
 
 
 class ObjectRewarder:

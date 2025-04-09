@@ -12,15 +12,14 @@ from cotracker.models.core.model_utils import get_points_on_a_grid
 from cotracker.predictor import CoTrackerOnlinePredictor, CoTrackerPredictor
 from cotracker.utils.visualizer import Visualizer, read_video_from_path
 from IPython.display import HTML
-from PIL import Image as im
-from tqdm import tqdm
-
 from object_rewards.point_tracking.lang_sam import LangSAM
 from object_rewards.utils.video_recorder import VideoRecorder
 from object_rewards.utils.visualization import (
     plot_rotation_and_translation,
     vis_sam_mask,
 )
+from PIL import Image as im
+from tqdm import tqdm
 
 
 class CoTrackerLangSam:
@@ -127,7 +126,9 @@ class CoTrackerLangSam:
 
         return pred_tracks[0, :].detach().cpu().numpy()
 
-    def get_segmented_tracks_by_batch(self, frames, text_prompt=None, queries=None):
+    def get_segmented_tracks_by_batch(
+        self, frames, text_prompt=None, queries=None, return_visibility=False
+    ):
 
         print("** GETTING TRACKS BY BATCH **")
 
@@ -175,6 +176,12 @@ class CoTrackerLangSam:
             )
 
         pbar.close()
+
+        if return_visibility:
+            return (
+                pred_tracks.detach().cpu(),
+                pred_visibility.detach().cpu(),
+            )
 
         return pred_tracks[0, :].detach().cpu().numpy()
 

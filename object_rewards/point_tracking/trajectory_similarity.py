@@ -8,10 +8,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 from dtw import *
 from matplotlib import cm
-from scipy.special import kl_div, rel_entr
-
 from object_rewards.utils.metrics import cosine_distance, optimal_transport_plan
 from object_rewards.utils.trajectory import get_rot_and_trans
+from scipy.special import kl_div, rel_entr
 
 
 class TrajSimMethod(IntEnum):
@@ -229,6 +228,7 @@ class TrajSimilarity:
     ):
 
         cost_matrix = cosine_distance(curr_traj, ref_traj, as_torch=False)
+        # cost_matrix = np.abs(curr_traj - ref_traj)
 
         transport_plan = optimal_transport_plan(
             curr_traj,

@@ -15,6 +15,7 @@ from object_rewards.point_tracking.lang_sam import LangSAM
 from object_rewards.utils.augmentations import crop_transform
 from object_rewards.utils.data import get_demo_action_ids
 
+CHECKPOINT_PATH = "/home/irmak/Workspace/robot-hand-project/submodules/object-rewards/submodules/co-tracker/checkpoints/cotracker2.pth"
 
 # This method will give segmented video from processed human demonstrations
 # for this to work one needs to process human demonstrations saved using HuDOR
@@ -122,7 +123,7 @@ def get_segmented_video(video_path, object_prompt, segm_video_name):
     )
 
     video = torch.from_numpy(video).permute(0, 3, 1, 2)[None].float()
-    model = CoTrackerPredictor()
+    model = CoTrackerPredictor(checkpoint=CHECKPOINT_PATH)
 
     if torch.cuda.is_available():
         model = model.cuda()

@@ -3,10 +3,13 @@ from abc import ABC, abstractmethod
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from third_person_man.models import weight_init
-from third_person_man.utils import TruncatedNormal, scale_tensor, schedule
-
-from object_rewards.utils import soft_update_params
+from object_rewards.utils import (
+    TruncatedNormal,
+    scale_tensor,
+    schedule,
+    soft_update_params,
+    weight_init,
+)
 
 
 class RLLearner(ABC):

@@ -1,13 +1,11 @@
-import hydra 
-
 from pathlib import Path
 
+import hydra
 from dm_env import specs
 from hydra.core.hydra_config import HydraConfig
-from PIL import Image as im
-
 from object_rewards.datasets.replay_buffer import *
 from object_rewards.utils import *
+from PIL import Image as im
 
 
 class Workspace:
@@ -40,7 +38,9 @@ class Workspace:
 
         # Set the environment related parameters
         # The agent will give the initial position of the wrist
-        kinova_pose = self.agent.base_policy.initialize_robot_position() # in centimeters
+        kinova_pose = (
+            self.agent.base_policy.initialize_robot_position()
+        )  # in centimeters
         self._env_setup(kinova_pose)
 
         # Set the image transform
@@ -93,10 +93,12 @@ class Workspace:
     def _env_setup(self, kinova_initial_pose):
         self._env_resources = {}
 
-        self.train_env = hydra.utils.call(  # If not call the actual interaction environment
-            self.cfg.task.make_fn,
-            robot_initial_pose=kinova_initial_pose,
-            **self._env_resources,
+        self.train_env = (
+            hydra.utils.call(  # If not call the actual interaction environment
+                self.cfg.task.make_fn,
+                robot_initial_pose=kinova_initial_pose,
+                **self._env_resources,
+            )
         )
 
         # Create replay buffer
@@ -293,7 +295,7 @@ class Workspace:
                 episode_id=self.global_episode,
                 visualize=self.cfg.save_train_cost_matrices,
             )
-            
+
             rewards_sum = np.sum(reward)
             if self.cfg.log:
                 metrics = {"eval_reward": rewards_sum}
@@ -347,10 +349,12 @@ class Workspace:
                         observations[obs_type] = torch.stack(observations[obs_type], 0)
 
                 # Get the reward
-                reward = self.agent.get_reward(  # NOTE: There was an error here, fix this
-                    episode_obs=observations,
-                    episode_id=self.global_episode,
-                    visualize=self.cfg.save_train_cost_matrices,
+                reward = (
+                    self.agent.get_reward(  # NOTE: There was an error here, fix this
+                        episode_obs=observations,
+                        episode_id=self.global_episode,
+                        visualize=self.cfg.save_train_cost_matrices,
+                    )
                 )
 
                 rewards_sum = np.sum(reward)
@@ -375,8 +379,9 @@ class Workspace:
                         )  # NOTE: There is a problem in here for DTW since that gives more rewards
                     )
 
-                    if (self.cfg.episode_frame_matches == -1
-                        or i > (obs_length - min_len)):  # Episode can be shorter than episode_frame_matches
+                    if self.cfg.episode_frame_matches == -1 or i > (
+                        obs_length - min_len
+                    ):  # Episode can be shorter than episode_frame_matches
                         new_reward = reward[
                             min_len - (obs_length - i)
                         ]  # Because reward only inclused the matches values so we're doing from the reverse
@@ -437,13 +442,11 @@ class Workspace:
             # Get the action
             with torch.no_grad(), eval_mode(self.agent):
 
-                action, flattened_base_action, is_done, metrics = (
-                    self.agent.act(
-                        obs=self._get_act_obs(time_step),
-                        global_step=self.global_step,
-                        episode_step=episode_step,
-                        eval_mode=False,
-                    )
+                action, flattened_base_action, is_done, metrics = self.agent.act(
+                    obs=self._get_act_obs(time_step),
+                    global_step=self.global_step,
+                    episode_step=episode_step,
+                    eval_mode=False,
                 )  # Flattened action will be added to the replay buffer inside the gym wrapper
 
                 if self.cfg.log:
